@@ -1,0 +1,11 @@
+streamlit
+plotly
+agno
+yfinance
+pandas
+numpy
+requests
+google-genai
+python-dotenv
+fastapi
+uvicorn
