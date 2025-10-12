@@ -53,12 +53,15 @@ export default function PortfolioPage() {
   const [showAddStock, setShowAddStock] = useState(false);
   const [showCreateAlert, setShowCreateAlert] = useState(false);
   const [selectedStock, setSelectedStock] = useState<any>(null);
+  const [marketStatus, setMarketStatus] = useState<any>(null);
+  const [marketLoading, setMarketLoading] = useState<boolean>(true);
 
   // Mock data for demonstration - replace with real API calls
   useEffect(() => {
     loadWatchlist();
     loadAlerts();
     loadNews();
+    fetchMarketStatus();
   }, []);
 
   const loadWatchlist = async () => {
@@ -303,6 +306,21 @@ export default function PortfolioPage() {
     setSearchResults(results);
   };
 
+  const fetchMarketStatus = async () => {
+    try {
+      setMarketLoading(true);
+      const res = await fetch(`/api/market-status?exchange=US`, { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to load market status");
+      const data = await res.json();
+      setMarketStatus(data);
+    } catch (e) {
+      console.error("Market status fetch error", e);
+      setMarketStatus(null);
+    } finally {
+      setMarketLoading(false);
+    }
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => {
       searchStocksDebounced(searchQuery);
@@ -313,6 +331,31 @@ export default function PortfolioPage() {
   return (
     <div className="min-h-screen bg-background text-foreground p-6">
       <div className="w-full">
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-2xl font-semibold tracking-tight">My Portfolio</h1>
+          <div className="flex items-center gap-3">
+            <div className="rounded-full border border-border bg-card px-3 py-1 text-sm text-card-foreground flex items-center gap-2">
+              <span
+                className={cn(
+                  "inline-block h-2 w-2 rounded-full",
+                  marketLoading
+                    ? "bg-muted-foreground"
+                    : marketStatus?.isOpen === true || marketStatus?.open === true || marketStatus?.marketState === "open"
+                    ? "bg-green-500"
+                    : "bg-red-500"
+                )}
+              />
+              <span className="text-muted-foreground">US Market:</span>
+              <span className="font-medium">
+                {marketLoading
+                  ? "Loading..."
+                  : (marketStatus?.isOpen === true || marketStatus?.open === true || marketStatus?.marketState === "open")
+                  ? "Open"
+                  : "Closed"}
+              </span>
+            </div>
+          </div>
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2">

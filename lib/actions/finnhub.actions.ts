@@ -150,6 +150,21 @@ export async function getNews(symbols?: string[]): Promise<MarketNewsArticle[]> 
   }
 }
 
+export async function getMarketStatus(exchange: string = 'US') {
+  try {
+    const token = process.env.FINNHUB_API_KEY ?? NEXT_PUBLIC_FINNHUB_API_KEY;
+    if (!token) {
+      throw new Error('FINNHUB API key is not configured');
+    }
+    const url = `${FINNHUB_BASE_URL}/stock/market-status?exchange=${encodeURIComponent(exchange)}&token=${token}`;
+    const data = await fetchJSON<any>(url, 60);
+    return data;
+  } catch (err) {
+    console.error('getMarketStatus error:', err);
+    throw new Error('Failed to fetch market status');
+  }
+}
+
 export const searchStocks = cache(async (query?: string): Promise<StockWithWatchlistStatus[]> => {
   try {
     const token = process.env.FINNHUB_API_KEY ?? NEXT_PUBLIC_FINNHUB_API_KEY;
