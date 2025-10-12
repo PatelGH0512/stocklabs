@@ -7,6 +7,17 @@ import { cache } from 'react';
 const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
 const NEXT_PUBLIC_FINNHUB_API_KEY = process.env.NEXT_PUBLIC_FINNHUB_API_KEY ?? '';
 
+class FetchHTTPError extends Error {
+  status: number;
+  body: string;
+  constructor(status: number, body: string) {
+    super(`Fetch failed ${status}: ${body}`);
+    this.name = 'FetchHTTPError';
+    this.status = status;
+    this.body = body;
+  }
+}
+
 // Internal helpers to construct TradingView-friendly symbols
 function stripSuffixes(sym: string) {
   return sym.replace(/\.[A-Z]+$/, '');
@@ -32,6 +43,22 @@ function buildTradingViewSymbol(symbol: string, exchange?: string): string | und
   return undefined;
 }
 
+// Heuristic exchange guessing to avoid restricted profile2 calls
+function guessExchangeFromSymbol(symbol: string): string | undefined {
+  const upper = (symbol || '').toUpperCase();
+  if (upper.endsWith('.NS')) return 'NSE'; // India
+  if (upper.endsWith('.BO')) return 'BSE'; // India
+  if (upper.endsWith('.TO')) return 'TSX'; // Canada
+  if (upper.endsWith('.V')) return 'TSXV'; // Canada Venture
+  if (upper.endsWith('.L')) return 'LSE'; // London
+  if (upper.endsWith('.HK')) return 'HKEX'; // Hong Kong
+  if (upper.endsWith('.AX')) return 'ASX'; // Australia
+  if (upper.endsWith('.PA')) return 'EURONEXT PARIS'; // France
+  if (upper.endsWith('.MC')) return 'BME'; // Spain
+  if (upper.endsWith('.F')) return 'FWB'; // Frankfurt (heuristic)
+  return undefined;
+}
+
 async function fetchJSON<T>(url: string, revalidateSeconds?: number): Promise<T> {
   const options: RequestInit & { next?: { revalidate?: number } } = revalidateSeconds
     ? { cache: 'force-cache', next: { revalidate: revalidateSeconds } }
@@ -40,7 +67,7 @@ async function fetchJSON<T>(url: string, revalidateSeconds?: number): Promise<T>
   const res = await fetch(url, options);
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new Error(`Fetch failed ${res.status}: ${text}`);
+    throw new FetchHTTPError(res.status, text);
   }
   return (await res.json()) as T;
 }
@@ -150,7 +177,10 @@ export const searchStocks = cache(async (query?: string): Promise<StockWithWatch
             exchangeMap.set(sym.toUpperCase(), profile?.exchange);
             return { sym, profile } as { sym: string; profile: any };
           } catch (e) {
-            console.error('Error fetching profile2 for', sym, e);
+            const is403 = (e as any)?.status === 403 || /Fetch failed 403/.test(String((e as any)?.message || ''));
+            const msg = is403 ? 'Access denied (403) fetching profile2 for' : 'Error fetching profile2 for';
+            // Downgrade 403 to warn to reduce noise
+            (is403 ? console.warn : console.error)(msg, sym, e);
             exchangeMap.set(sym.toUpperCase(), undefined);
             return { sym, profile: null } as { sym: string; profile: any };
           }
@@ -184,12 +214,20 @@ export const searchStocks = cache(async (query?: string): Promise<StockWithWatch
       const topResults = results.slice(0, 10);
       await Promise.all(topResults.map(async (r) => {
         const sym = (r.symbol || '').toUpperCase();
+        // First try to infer exchange from symbol suffix to avoid restricted calls
+        const guessed = guessExchangeFromSymbol(sym);
+        if (guessed) {
+          exchangeMap.set(sym, guessed);
+          return;
+        }
         try {
           const url = `${FINNHUB_BASE_URL}/stock/profile2?symbol=${encodeURIComponent(sym)}&token=${token}`;
           const profile = await fetchJSON<any>(url, 3600);
           exchangeMap.set(sym, profile?.exchange);
         } catch (e) {
-          console.error('Error fetching profile2 for', sym, e);
+          const is403 = (e as any)?.status === 403 || /Fetch failed 403/.test(String((e as any)?.message || ''));
+          const msg = is403 ? 'Access denied (403) fetching profile2 for' : 'Error fetching profile2 for';
+          (is403 ? console.warn : console.error)(msg, sym, e);
           exchangeMap.set(sym, undefined);
         }
       }));

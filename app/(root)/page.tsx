@@ -56,12 +56,7 @@ const Landing = () => {
         <div className="relative overflow-hidden">
             {/* Hero Section */}
             <section className="relative min-h-[85vh] flex flex-col items-center justify-center text-center px-4 py-12">
-                {/* Animated Background Elements */}
-                <div className="absolute inset-0 -z-10 overflow-hidden">
-                    <div className="absolute top-20 left-10 w-72 h-72 bg-yellow-500/10 rounded-full blur-3xl animate-pulse" />
-                    <div className="absolute bottom-20 right-10 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-teal-400/5 rounded-full blur-3xl" />
-                </div>
+                {/* Background moved to page wrapper to cover entire landing page */}
 
                 <div className={`space-y-6 max-w-4xl mx-auto transition-all duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
                     {/* Badge */}
@@ -73,7 +68,7 @@ const Landing = () => {
                     {/* Main Heading */}
                     <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-foreground leading-tight">
                         Trade Smarter with
-                        <span className="block mt-2 bg-gradient-to-r from-yellow-500 via-yellow-400 to-orange-500 bg-clip-text text-transparent">
+                        <span className="block mt-2 bg-clip-text text-transparent [background-image:var(--gradient-primary)]">
                             Real-Time Insights
                         </span>
                     </h1>
@@ -92,7 +87,7 @@ const Landing = () => {
                             </Button>
                         </Link>
                         <Link href="/search">
-                            <Button variant="outline" className="px-8 py-6 text-lg border-gray-600 hover:bg-gray-800/50 group">
+                            <Button variant="outline" className="px-8 py-6 text-lg border-border hover:bg-muted/50 group">
                                 Explore Stocks
                                 <Search className="ml-2 h-5 w-5 group-hover:rotate-12 transition-transform" />
                             </Button>
