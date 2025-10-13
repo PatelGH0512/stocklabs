@@ -5,6 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { searchStocks } from "@/lib/actions/finnhub.actions";
+import PortfolioHeader from "@/components/ui/portfolio/PortfolioHeader";
+import PortfolioCards from "@/components/ui/portfolio/PortfolioCards";
+import HoldingsSection from "@/components/ui/portfolio/HoldingsSection";
+import InsiderSentiment from "@/components/ui/portfolio/InsiderSentiment";
 
 interface WatchlistItem {
   id: string;
@@ -40,6 +44,8 @@ interface NewsItem {
   url: string;
 }
 
+// Holdings handled by components/ui/portfolio/HoldingsSection
+
 export default function PortfolioPage() {
   const [activeTab, setActiveTab] = useState<"watchlist" | "alerts">(
     "watchlist"
@@ -55,6 +61,7 @@ export default function PortfolioPage() {
   const [selectedStock, setSelectedStock] = useState<any>(null);
   const [marketStatus, setMarketStatus] = useState<any>(null);
   const [marketLoading, setMarketLoading] = useState<boolean>(true);
+  const [holdingSymbols, setHoldingSymbols] = useState<string[]>([]);
 
   // Mock data for demonstration - replace with real API calls
   useEffect(() => {
@@ -309,7 +316,9 @@ export default function PortfolioPage() {
   const fetchMarketStatus = async () => {
     try {
       setMarketLoading(true);
-      const res = await fetch(`/api/market-status?exchange=US`, { cache: "no-store" });
+      const res = await fetch(`/api/market-status?exchange=US`, {
+        cache: "no-store",
+      });
       if (!res.ok) throw new Error("Failed to load market status");
       const data = await res.json();
       setMarketStatus(data);
@@ -328,187 +337,21 @@ export default function PortfolioPage() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // holdings logic moved into HoldingsSection component
+
   return (
-    <div className="min-h-screen bg-background text-foreground p-6">
+    <div className="min-h-screen bg-background dark:bg-background text-foreground p-6">
       <div className="w-full">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-semibold tracking-tight">My Portfolio</h1>
-          <div className="flex items-center gap-3">
-            <div className="rounded-full border border-border bg-card px-3 py-1 text-sm text-card-foreground flex items-center gap-2">
-              <span
-                className={cn(
-                  "inline-block h-2 w-2 rounded-full",
-                  marketLoading
-                    ? "bg-muted-foreground"
-                    : marketStatus?.isOpen === true || marketStatus?.open === true || marketStatus?.marketState === "open"
-                    ? "bg-green-500"
-                    : "bg-red-500"
-                )}
-              />
-              <span className="text-muted-foreground">US Market:</span>
-              <span className="font-medium">
-                {marketLoading
-                  ? "Loading..."
-                  : (marketStatus?.isOpen === true || marketStatus?.open === true || marketStatus?.marketState === "open")
-                  ? "Open"
-                  : "Closed"}
-              </span>
-            </div>
-          </div>
-        </div>
+        <PortfolioHeader
+          marketStatus={marketStatus}
+          marketLoading={marketLoading}
+        />
+        <PortfolioCards watchlist={watchlist} alerts={alerts} />
+        <HoldingsSection onHoldingsChange={setHoldingSymbols} />
+        <InsiderSentiment symbols={holdingSymbols} />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
-          <div className="lg:col-span-2">
-            {activeTab === "watchlist" ? (
-              <div className="rounded-xl overflow-hidden border bg-card text-card-foreground">
-                <div className="flex items-center justify-between p-4 border-b border-border">
-                  <h2 className="text-xl font-semibold">Watchlist</h2>
-                  <Button
-                    onClick={() => setShowAddStock(true)}
-                    className="bg-primary text-primary-foreground hover:brightness-110 px-6"
-                  >
-                    Add Stock
-                  </Button>
-                </div>
-                <table className="w-full">
-                  <thead className="bg-muted text-muted-foreground text-sm">
-                    <tr>
-                      <th className="text-left p-4">Company</th>
-                      <th className="text-left p-4">Symbol</th>
-                      <th className="text-right p-4">Price</th>
-                      <th className="text-right p-4">Change</th>
-                      <th className="text-right p-4">Market Cap</th>
-                      <th className="text-right p-4">P/E Ratio</th>
-                      <th className="text-center p-4">Alert</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {watchlist.map((item, index) => (
-                      <tr
-                        key={item.id}
-                        className="border-t border-border hover:bg-muted/50 transition-colors"
-                      >
-                        <td className="p-4 flex items-center gap-2">
-                          <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center text-black font-bold text-xs">
-                            {item.symbol.charAt(0)}
-                          </div>
-                          <span className="text-foreground">
-                            {item.company}
-                          </span>
-                        </td>
-                        <td className="p-4 text-muted-foreground">
-                          {item.symbol}
-                        </td>
-                        <td className="p-4 text-right text-foreground">
-                          ${item.price.toFixed(2)}
-                        </td>
-                        <td
-                          className={cn(
-                            "p-4 text-right",
-                            item.changePercent >= 0
-                              ? "text-green-500"
-                              : "text-red-500"
-                          )}
-                        >
-                          {item.changePercent >= 0 ? "+" : ""}
-                          {item.changePercent.toFixed(2)}%
-                        </td>
-                        <td className="p-4 text-right text-muted-foreground">
-                          ${item.marketCap}
-                        </td>
-                        <td className="p-4 text-right text-muted-foreground">
-                          {item.peRatio.toFixed(1)}
-                        </td>
-                        <td className="p-4 text-center">
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              setSelectedStock(item);
-                              setShowCreateAlert(true);
-                            }}
-                            className="bg-muted hover:bg-muted/80 text-primary text-xs px-3 py-1"
-                          >
-                            Add Alert
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {alerts.map((alert) => (
-                  <div
-                    key={alert.id}
-                    className="rounded-xl p-6 flex items-center justify-between border bg-card text-card-foreground"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center">
-                        <span className="text-yellow-500 font-bold">
-                          {alert.symbol.charAt(0)}
-                        </span>
-                      </div>
-                      <div>
-                        <h3 className="text-foreground font-semibold">
-                          {alert.company}
-                        </h3>
-                        <p className="text-muted-foreground text-sm">
-                          {alert.symbol}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-muted-foreground text-sm">Alert:</p>
-                      <p className="text-foreground">
-                        Price {alert.condition} ${alert.value.toFixed(2)}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => handleDeleteAlert(alert.id)}
-                        className="text-muted-foreground hover:text-red-500 transition-colors"
-                      >
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </button>
-                      <button className="text-muted-foreground hover:text-foreground transition-colors">
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-muted-foreground text-sm">
-                        Once per day
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+
           <div className="space-y-6">
             {/* News Section */}
             <div className="rounded-xl p-6 border bg-card text-card-foreground">

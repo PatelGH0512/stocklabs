@@ -74,6 +74,84 @@ async function fetchJSON<T>(url: string, revalidateSeconds?: number): Promise<T>
 
 export { fetchJSON };
 
+/**
+ * Insider Sentiment (MSPR) helpers
+ */
+export type InsiderSentimentItem = {
+  symbol: string;
+  year: number;
+  month: number;
+  change: number;
+  mspr: number;
+};
+
+export type InsiderSentimentSummary = {
+  symbol: string;
+  mspr: number; // latest MSPR
+  signal: 'Strong Bullish' | 'Bullish' | 'Neutral' | 'Bearish' | 'Strong Bearish';
+  trend: 'Increasing Insider Buys' | 'Slight Increase in Buys' | 'Balanced' | 'Slight Increase in Sells' | 'Heavy Insider Selling';
+  latest: InsiderSentimentItem | null;
+  previous: InsiderSentimentItem | null;
+};
+
+function msprToSignal(mspr: number): InsiderSentimentSummary['signal'] {
+  if (mspr >= 60) return 'Strong Bullish';
+  if (mspr >= 20) return 'Bullish';
+  if (mspr > -20) return 'Neutral';
+  if (mspr > -60) return 'Bearish';
+  return 'Strong Bearish';
+}
+
+function trendFrom(last: InsiderSentimentItem | null, prev: InsiderSentimentItem | null): InsiderSentimentSummary['trend'] {
+  if (!last || !prev) return 'Balanced';
+  const delta = (last.mspr ?? 0) - (prev.mspr ?? 0);
+  if (delta >= 20) return 'Increasing Insider Buys';
+  if (delta > 5) return 'Slight Increase in Buys';
+  if (delta > -5) return 'Balanced';
+  if (delta > -20) return 'Slight Increase in Sells';
+  return 'Heavy Insider Selling';
+}
+
+export async function getInsiderSentiments(symbols: string[], from: string, to: string): Promise<InsiderSentimentSummary[]> {
+  const token = process.env.FINNHUB_API_KEY ?? NEXT_PUBLIC_FINNHUB_API_KEY;
+  if (!token) {
+    throw new Error('FINNHUB API key is not configured');
+  }
+
+  const clean = (symbols || [])
+    .map((s) => s?.trim().toUpperCase())
+    .filter((s): s is string => Boolean(s));
+
+  const results: InsiderSentimentSummary[] = [];
+
+  await Promise.all(
+    clean.map(async (sym) => {
+      try {
+        const url = `${FINNHUB_BASE_URL}/stock/insider-sentiment?symbol=${encodeURIComponent(sym)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&token=${token}`;
+        const data = await fetchJSON<{ symbol?: string; data?: InsiderSentimentItem[] }>(url, 3600);
+        const items = Array.isArray(data?.data) ? data!.data! : [];
+        items.sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month);
+        const latest = items[items.length - 1] || null;
+        const previous = items[items.length - 2] || null;
+        const mspr = latest?.mspr ?? 0;
+        results.push({
+          symbol: sym,
+          mspr,
+          signal: msprToSignal(mspr),
+          trend: trendFrom(latest, previous),
+          latest,
+          previous,
+        });
+      } catch (e) {
+        console.error('getInsiderSentiments error for', sym, e);
+        results.push({ symbol: sym, mspr: 0, signal: 'Neutral', trend: 'Balanced', latest: null, previous: null });
+      }
+    })
+  );
+
+  return results;
+}
+
 export async function getNews(symbols?: string[]): Promise<MarketNewsArticle[]> {
   try {
     const range = getDateRange(5);

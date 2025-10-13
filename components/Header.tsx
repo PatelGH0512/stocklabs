@@ -21,6 +21,7 @@ const Header = async ({ user }: { user: User }) => {
 
         <div className="flex items-center gap-3">
           <UserDropdown user={user} initialStocks={initialStocks} />
+          <ThemeToggle />
         </div>
       </div>
     </header>

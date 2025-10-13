@@ -4,6 +4,7 @@ export const NAV_ITEMS = [
     { href: '/search', label: 'Search' },
     { href: '/compare', label: 'Compare' },
     { href: '/portfolio', label: 'My Portfolio' },
+    { href: '/watchlist', label: 'Watchlist' },
 ];
 
 // Sign-up form select options
