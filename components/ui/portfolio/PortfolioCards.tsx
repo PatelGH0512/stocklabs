@@ -1,5 +1,7 @@
 "use client";
 import { cn } from "@/lib/utils";
+import { useEffect, useMemo, useState } from "react";
+import { HiTrendingUp, HiTrendingDown, HiCurrencyDollar, HiScale } from "react-icons/hi";
 
 interface WatchlistLite {
   id: string;
@@ -12,52 +14,169 @@ interface PortfolioCardsProps {
   alerts: { id: string; active: boolean }[];
 }
 
+interface HoldingItem {
+  id: string;
+  symbol: string;
+  company: string;
+  shares: number;
+  buyPrice: number;
+  currentPrice: number;
+}
+
 export default function PortfolioCards({ watchlist, alerts }: PortfolioCardsProps) {
+  const [holdings, setHoldings] = useState<HoldingItem[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch("/api/holdings", { cache: "no-store" });
+        if (!res.ok) return;
+        const data: any[] = await res.json();
+        setHoldings(
+          data.map((d) => ({
+            id: d.id,
+            symbol: d.symbol,
+            company: d.company,
+            shares: d.shares,
+            buyPrice: d.buyPrice,
+            currentPrice: Number(d.currentPrice || 0),
+          }))
+        );
+      } catch {}
+    };
+    load();
+  }, []);
+
+  const symbolsKey = useMemo(
+    () => holdings.map((h) => h.symbol).sort().join(","),
+    [holdings]
+  );
+
+  useEffect(() => {
+    const fetchQuotes = async () => {
+      const symbols = holdings.map((h) => h.symbol).filter(Boolean);
+      if (symbols.length === 0) return;
+      try {
+        const url = `/api/quotes?symbols=${encodeURIComponent(symbols.join(","))}`;
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) return;
+        const data: Record<string, number> = await res.json();
+        setHoldings((prev) =>
+          prev.map((h) => ({
+            ...h,
+            currentPrice: data[h.symbol] ?? h.currentPrice,
+          }))
+        );
+      } catch {}
+    };
+    fetchQuotes();
+  }, [symbolsKey]);
+
+  const {
+    totalShares,
+    avgCurrentPrice,
+    totalValue,
+    costBasis,
+    valueChange,
+    gainLossPct,
+    isUp,
+  } = useMemo(() => {
+    const totalShares = holdings.reduce((acc, h) => acc + (h.shares || 0), 0);
+    const totalValue = holdings.reduce(
+      (acc, h) => acc + (h.currentPrice || 0) * (h.shares || 0),
+      0
+    );
+    const costBasis = holdings.reduce(
+      (acc, h) => acc + (h.buyPrice || 0) * (h.shares || 0),
+      0
+    );
+    const valueChange = totalValue - costBasis;
+    const gainLossPct = costBasis > 0 ? (valueChange / costBasis) * 100 : 0;
+    const isUp = gainLossPct >= 0;
+    const avgCurrentPrice = totalShares > 0 ? totalValue / totalShares : 0;
+    return {
+      totalShares,
+      avgCurrentPrice,
+      totalValue,
+      costBasis,
+      valueChange,
+      gainLossPct,
+      isUp,
+    };
+  }, [holdings]);
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-      <div className="relative overflow-hidden rounded-xl border border-border bg-card text-card-foreground p-5">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-blue-500/15 text-blue-500 flex items-center justify-center">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1C5.925 1 1 5.925 1 12s4.925 11 11 11 11-4.925 11-11S18.075 1 12 1Zm1 17.5h-2v-2h2v2Zm2.07-7.75-.9.92c-.72.73-1.17 1.23-1.17 2.33h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26a2 2 0 1 0-2.83-2.83 2.02 2.02 0 0 0-.59 1.41H6.99A4.99 4.99 0 0 1 14 5.09c1.33 1.33 1.33 3.49 0 4.82Z"/></svg>
+      {[
+        {
+          label: "Current Price",
+          value: `$${avgCurrentPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+          change: `${gainLossPct.toFixed(2)}%`,
+          trend: isUp ? "up" as const : "down" as const,
+          icon: HiCurrencyDollar,
+          color: isUp ? "emerald" : "red",
+        },
+        {
+          label: "Total Value",
+          value: `$${totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+          icon: HiScale,
+          color: "blue",
+        },
+        {
+          label: "Gain/Loss",
+          value: `${isUp ? "+" : ""}${gainLossPct.toFixed(2)}%`,
+          subValue: `$${Math.abs(valueChange).toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+          icon: isUp ? HiTrendingUp : HiTrendingDown,
+          color: isUp ? "emerald" : "red",
+        },
+      ].map((stat, index) => (
+        <div
+          key={index}
+          className={cn(
+            "relative overflow-hidden rounded-xl border border-border bg-card text-card-foreground p-5"
+          )}
+        >
+          <div className="flex items-start justify-between">
+            <div className={cn(
+              "h-8 w-8 rounded-full flex items-center justify-center",
+              stat.color === "emerald" && "bg-emerald-500/15 text-emerald-600",
+              stat.color === "red" && "bg-red-500/15 text-red-600",
+              stat.color === "blue" && "bg-blue-500/15 text-blue-600"
+            )}>
+              <stat.icon className="h-4 w-4" />
             </div>
           </div>
-        </div>
-        <div className="mt-2 text-sm text-muted-foreground">Total Value</div>
-        <div className="text-2xl font-semibold">$4,700.42</div>
-        <div className="mt-1 text-xs text-muted-foreground">Avg. Cost Basis: $46.44</div>
-        <div className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-blue-500/10 to-transparent"/>
-      </div>
-
-      <div className="relative overflow-hidden rounded-xl border border-border bg-card text-card-foreground p-5">
-        <div className="flex items-start justify-between">
-          <div className="h-8 w-8 rounded-full bg-green-500/15 text-green-600 flex items-center justify-center">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17h2l3.29-3.29 3.3 3.3L20 9.59l1.41 1.41L12.59 20 8.29 15.71 5 19V17zM3 5h18v2H3z"/></svg>
+          <div className="mt-2 text-sm text-muted-foreground">{stat.label}</div>
+          <div className="mt-1.5 flex items-baseline gap-2">
+            <div className="text-2xl font-semibold">{stat.value}</div>
+            {"change" in stat && (stat as any).change && (
+              <span
+                className={cn(
+                  "text-xs px-2 py-0.5 rounded-md",
+                  (stat as any).trend === "up" ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-600"
+                )}
+              >
+                {(stat as any).change}
+              </span>
+            )}
           </div>
+          {"subValue" in stat && (stat as any).subValue && (
+            <div className={cn("mt-1 text-xs",
+              stat.color === "emerald" ? "text-emerald-600" : stat.color === "red" ? "text-red-600" : "text-muted-foreground"
+            )}>
+              {(stat as any).subValue}
+            </div>
+          )}
+          <div
+            className={cn(
+              "pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l to-transparent",
+              stat.color === "emerald" && "from-emerald-500/10",
+              stat.color === "red" && "from-red-500/10",
+              stat.color === "blue" && "from-blue-500/10"
+            )}
+          />
         </div>
-        <div className="mt-2 text-sm text-muted-foreground">Total Gain/Loss</div>
-        <div className="text-2xl font-semibold text-green-600">+532.63%</div>
-        <div className="mt-1 text-xs text-muted-foreground">($3,567.42) · Daily Change: 275.28%</div>
-        <div className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-green-500/10 to-transparent"/>
-      </div>
-
-      <div className="relative overflow-hidden rounded-xl border border-border bg-card text-card-foreground p-5">
-        <div className="flex items-start justify-between">
-          <div className="h-8 w-8 rounded-full bg-purple-500/15 text-purple-600 flex items-center justify-center">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 10 10A10.012 10.012 0 0 0 12 2Zm1 17.93V20h-2v-.07A8.006 8.006 0 0 1 4.07 13H4v-2h.07A8.006 8.006 0 0 1 11 4.07V4h2v.07A8.006 8.006 0 0 1 19.93 11H20v2h-.07A8.006 8.006 0 0 1 13 19.93Z"/></svg>
-          </div>
-        </div>
-        <div className="mt-2 text-sm text-muted-foreground">Portfolio Analytics</div>
-        <div className="mt-3 flex items-center justify-between text-sm">
-          <div className="text-muted-foreground">Holdings</div>
-          <div className="text-purple-500 font-medium">{watchlist.length} stocks</div>
-        </div>
-        <div className="mt-1 flex items-center justify-between text-sm">
-          <div className="text-muted-foreground">Top Performer</div>
-          <div className="text-purple-500 font-medium">{watchlist[0]?.symbol || "—"}</div>
-        </div>
-        <div className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-purple-500/10 to-transparent"/>
-      </div>
+      ))}
 
       <div className="relative overflow-hidden rounded-xl border border-border bg-card text-card-foreground p-5">
         <div className="flex items-start justify-between">

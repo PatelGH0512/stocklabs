@@ -90,8 +90,8 @@ export default function InsiderSentiment({ symbols }: { symbols: string[] }) {
   if (uniqueSymbols.length === 0) return null;
 
   return (
-    <div className="rounded-xl overflow-hidden border bg-card text-card-foreground mb-6">
-      <div className="p-4 border-b border-border flex items-center justify-between">
+    <div className="rounded-xl overflow-hidden border bg-card text-card-foreground mb-6 h-[420px] lg:h-[420px] flex flex-col">
+      <div className="p-4 border-b border-border flex items-center justify-between shrink-0">
         <h2 className="text-xl font-semibold">Insider Sentiment</h2>
         <Dialog>
           <DialogTrigger asChild>
@@ -112,7 +112,7 @@ export default function InsiderSentiment({ symbols }: { symbols: string[] }) {
                 on their own buying and selling activity.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-3 text-sm text-foreground">
+            <div className="space-y-3 text-sm text-foreground p-4 flex-1 overflow-y-auto">
               <p>
                 MSPR ranges from <strong>-100</strong> (most negative) to{" "}
                 <strong>+100</strong> (most positive).
@@ -147,7 +147,7 @@ export default function InsiderSentiment({ symbols }: { symbols: string[] }) {
         </Dialog>
       </div>
 
-      <div className="w-full">
+      <div className="w-full flex-1 overflow-y-auto scrollbar-hide-default">
         {loading ? (
           <div className="p-6 text-sm text-muted-foreground">
             Loading insider sentiment…

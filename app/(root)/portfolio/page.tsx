@@ -9,6 +9,8 @@ import PortfolioHeader from "@/components/ui/portfolio/PortfolioHeader";
 import PortfolioCards from "@/components/ui/portfolio/PortfolioCards";
 import HoldingsSection from "@/components/ui/portfolio/HoldingsSection";
 import InsiderSentiment from "@/components/ui/portfolio/InsiderSentiment";
+import RecommendationTrends from "@/components/ui/portfolio/RecommendationTrends";
+import TopPerformersChart from "@/components/ui/portfolio/TopPerformersChart";
 
 interface WatchlistItem {
   id: string;
@@ -348,45 +350,17 @@ export default function PortfolioPage() {
         />
         <PortfolioCards watchlist={watchlist} alerts={alerts} />
         <HoldingsSection onHoldingsChange={setHoldingSymbols} />
-        <InsiderSentiment symbols={holdingSymbols} />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Content */}
-
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-6">
-            {/* News Section */}
-            <div className="rounded-xl p-6 border bg-card text-card-foreground">
-              <h2 className="text-xl font-semibold mb-4">News</h2>
-              <div className="space-y-4">
-                {news.map((item) => (
-                  <div
-                    key={item.id}
-                    className="border-b border-border pb-4 last:border-0"
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="bg-green-500/20 text-green-500 text-xs px-2 py-1 rounded">
-                        {item.category}
-                      </span>
-                      <span className="text-muted-foreground text-xs">
-                        {item.datetime}
-                      </span>
-                    </div>
-                    <h3 className="text-foreground font-medium text-sm mb-1 line-clamp-2">
-                      {item.headline}
-                    </h3>
-                    <p className="text-muted-foreground text-xs line-clamp-2 mb-2">
-                      {item.summary}
-                    </p>
-                    <a
-                      href={item.url}
-                      className="text-yellow-500 text-xs hover:underline"
-                    >
-                      Read More →
-                    </a>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <InsiderSentiment symbols={holdingSymbols} />
           </div>
+          <div className="space-y-6">
+            <RecommendationTrends symbols={holdingSymbols} />
+          </div>
+        </div>
+
+        <div className="mt-1">
+          <TopPerformersChart symbols={holdingSymbols} />
         </div>
 
         {/* Add Stock Modal */}

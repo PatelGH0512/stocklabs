@@ -746,3 +746,7 @@
 .scrollbar-hide-default::-webkit-scrollbar-thumb:hover {
   background-color: #9095A1;
 }
+/* app/globals.css */
+.dark .top-performer-chart canvas {
+  color: #ffffff !important;
+}

@@ -18,6 +18,141 @@ class FetchHTTPError extends Error {
   }
 }
 
+export interface PerformanceItem { symbol: string; changePct: number }
+
+function periodToUnixRange(period: '7d' | '1m' | '3m' | 'ytd') {
+  const now = Math.floor(Date.now() / 1000);
+  const d = new Date();
+  let fromDate: Date;
+  switch (period) {
+    case '7d':
+      fromDate = new Date(d.getTime() - 7 * 24 * 3600 * 1000);
+      break;
+    case '1m':
+      fromDate = new Date(d);
+      fromDate.setMonth(d.getMonth() - 1);
+      break;
+    case '3m':
+      fromDate = new Date(d);
+      fromDate.setMonth(d.getMonth() - 3);
+      break;
+    case 'ytd':
+      fromDate = new Date(d.getFullYear(), 0, 1);
+      break;
+    default:
+      fromDate = new Date(d.getTime() - 30 * 24 * 3600 * 1000);
+  }
+  const from = Math.floor(fromDate.getTime() / 1000);
+  return { from, to: now };
+}
+
+export async function getPerformance(symbols: string[], period: '7d' | '1m' | '3m' | 'ytd' = '1m'): Promise<PerformanceItem[]> {
+  const token = process.env.FINNHUB_API_KEY ?? NEXT_PUBLIC_FINNHUB_API_KEY;
+  if (!token) throw new Error('FINNHUB API key is not configured');
+  const clean = (symbols || []).map((s) => s?.trim().toUpperCase()).filter(Boolean);
+  if (clean.length === 0) return [];
+  const { from, to } = periodToUnixRange(period);
+
+  const out: PerformanceItem[] = [];
+  await Promise.all(clean.map(async (sym) => {
+    try {
+      const url = `${FINNHUB_BASE_URL}/stock/candle?symbol=${encodeURIComponent(sym)}&resolution=D&from=${from}&to=${to}&token=${token}`;
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) {
+        // Graceful fallback on 403/4xx/5xx
+        console.warn('getPerformance non-ok response for', sym, res.status);
+        out.push({ symbol: sym, changePct: 0 });
+        return;
+      }
+      const data = await res.json() as { s?: string; o?: number[]; c?: number[] };
+      if (data?.s !== 'ok' || !Array.isArray(data.o) || !Array.isArray(data.c) || data.o.length === 0 || data.c.length === 0) {
+        out.push({ symbol: sym, changePct: 0 });
+        return;
+      }
+      const firstOpen = Number(data.o[0]);
+      const lastClose = Number(data.c[data.c.length - 1]);
+      const changePct = firstOpen > 0 ? ((lastClose - firstOpen) / firstOpen) * 100 : 0;
+      out.push({ symbol: sym, changePct });
+    } catch (e) {
+      console.error('getPerformance error for', sym, e);
+      out.push({ symbol: sym, changePct: 0 });
+    }
+  }));
+  return out;
+}
+
+export type RecommendationItem = {
+  symbol: string;
+  period: string; // e.g., 2024-09-01
+  strongBuy: number;
+  buy: number;
+  hold: number;
+  sell: number;
+  strongSell: number;
+};
+
+export async function getRecommendationTrends(symbols: string[]): Promise<RecommendationItem[]> {
+  const token = process.env.FINNHUB_API_KEY ?? NEXT_PUBLIC_FINNHUB_API_KEY;
+  if (!token) throw new Error('FINNHUB API key is not configured');
+
+  const clean = (symbols || [])
+    .map((s) => s?.trim().toUpperCase())
+    .filter((s): s is string => Boolean(s));
+
+  const results: RecommendationItem[] = [];
+  await Promise.all(
+    clean.map(async (sym) => {
+      try {
+        const url = `${FINNHUB_BASE_URL}/stock/recommendation?symbol=${encodeURIComponent(sym)}&token=${token}`;
+        const arr = await fetchJSON<any[]>(url, 3600);
+        // Finnhub returns an array sorted desc by period typically; take the first item as latest
+        const latest = Array.isArray(arr) && arr.length > 0 ? arr[0] : null;
+        if (latest) {
+          results.push({
+            symbol: sym,
+            period: String(latest.period || ''),
+            strongBuy: Number(latest.strongBuy || latest.strong_buy || 0),
+            buy: Number(latest.buy || 0),
+            hold: Number(latest.hold || 0),
+            sell: Number(latest.sell || 0),
+            strongSell: Number(latest.strongSell || latest.strong_sell || 0),
+          });
+        } else {
+          results.push({ symbol: sym, period: '', strongBuy: 0, buy: 0, hold: 0, sell: 0, strongSell: 0 });
+        }
+      } catch (e) {
+        console.error('getRecommendationTrends error for', sym, e);
+        results.push({ symbol: sym, period: '', strongBuy: 0, buy: 0, hold: 0, sell: 0, strongSell: 0 });
+      }
+    })
+  );
+  return results;
+}
+
+export async function getQuotes(symbols: string[]): Promise<Record<string, number>> {
+  const token = process.env.FINNHUB_API_KEY ?? NEXT_PUBLIC_FINNHUB_API_KEY;
+  if (!token) {
+    throw new Error('FINNHUB API key is not configured');
+  }
+  const clean = (symbols || [])
+    .map((s) => s?.trim().toUpperCase())
+    .filter((s): s is string => Boolean(s));
+  const out: Record<string, number> = {};
+  await Promise.all(
+    clean.map(async (sym) => {
+      try {
+        const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(sym)}&token=${token}`;
+        const q = await fetchJSON<{ c?: number }>(url, 30);
+        const c = Number(q?.c ?? 0);
+        if (Number.isFinite(c) && c > 0) out[sym] = c;
+      } catch (e) {
+        console.error('getQuotes error for', sym, e);
+      }
+    })
+  );
+  return out;
+}
+
 // Internal helpers to construct TradingView-friendly symbols
 function stripSuffixes(sym: string) {
   return sym.replace(/\.[A-Z]+$/, '');
