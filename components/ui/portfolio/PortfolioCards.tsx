@@ -2,6 +2,7 @@
 import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useState } from "react";
 import { HiTrendingUp, HiTrendingDown, HiCurrencyDollar, HiScale } from "react-icons/hi";
+import { useQuotesStream } from "@/hooks/useQuotesStream";
 
 interface WatchlistLite {
   id: string;
@@ -25,6 +26,7 @@ interface HoldingItem {
 
 export default function PortfolioCards({ watchlist, alerts }: PortfolioCardsProps) {
   const [holdings, setHoldings] = useState<HoldingItem[]>([]);
+  const [quoteDetails, setQuoteDetails] = useState<Record<string, { current: number; previousClose: number }>>({});
 
   useEffect(() => {
     const load = async () => {
@@ -72,6 +74,29 @@ export default function PortfolioCards({ watchlist, alerts }: PortfolioCardsProp
     fetchQuotes();
   }, [symbolsKey]);
 
+  // Live trade updates via shared WS
+  useQuotesStream(
+    holdings.map((h) => h.symbol),
+    (symbol, price) => {
+      setHoldings((prev) => prev.map((h) => (h.symbol === symbol ? { ...h, currentPrice: price } : h)));
+    }
+  );
+
+  useEffect(() => {
+    const fetchDetails = async () => {
+      const symbols = holdings.map((h) => h.symbol).filter(Boolean);
+      if (symbols.length === 0) return;
+      try {
+        const url = `/api/quotes/details?symbols=${encodeURIComponent(symbols.join(","))}`;
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) return;
+        const data: Record<string, { current: number; previousClose: number }> = await res.json();
+        setQuoteDetails(data || {});
+      } catch {}
+    };
+    fetchDetails();
+  }, [symbolsKey]);
+
   const {
     totalShares,
     avgCurrentPrice,
@@ -104,6 +129,23 @@ export default function PortfolioCards({ watchlist, alerts }: PortfolioCardsProp
       isUp,
     };
   }, [holdings]);
+
+  const { gainer, loser, volatility } = useMemo(() => {
+    const changes = holdings
+      .map((h) => {
+        const d = quoteDetails[h.symbol];
+        const pc = d?.previousClose ?? 0;
+        const c = d?.current ?? h.currentPrice ?? 0;
+        const changePercent = pc > 0 ? ((c - pc) / pc) * 100 : 0;
+        return { symbol: h.symbol, changePercent };
+      })
+      .filter((x) => Number.isFinite(x.changePercent));
+    if (changes.length === 0) return { gainer: null as any, loser: null as any, volatility: 0 };
+    const gainer = changes.reduce((a, b) => (b.changePercent > a.changePercent ? b : a));
+    const loser = changes.reduce((a, b) => (b.changePercent < a.changePercent ? b : a));
+    const volatility = changes.reduce((sum, c) => sum + Math.abs(c.changePercent), 0) / changes.length;
+    return { gainer, loser, volatility };
+  }, [holdings, quoteDetails]);
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
@@ -184,14 +226,26 @@ export default function PortfolioCards({ watchlist, alerts }: PortfolioCardsProp
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M11 21a1 1 0 0 1-1-1v-6H6l7-11v7h4l-6 11h0Z"/></svg>
           </div>
         </div>
-        <div className="mt-2 text-sm text-muted-foreground">Quick Stats</div>
-        <div className="mt-2 flex items-center justify-between text-sm">
-          <div className="text-muted-foreground">In Watchlist</div>
-          <div className="font-medium">{watchlist.length}</div>
-        </div>
-        <div className="mt-1 flex items-center justify-between text-sm">
-          <div className="text-muted-foreground">Active Alerts</div>
-          <div className="font-medium">{alerts.filter((a) => a.active).length}</div>
+        <div className="mt-2 text-sm text-muted-foreground">Top Daily Movers</div>
+        <div className="mt-2 space-y-2 text-sm">
+          <div className="flex items-center justify-between">
+            <div className="text-muted-foreground">Biggest Gainer</div>
+            <div className={cn("font-medium flex items-center gap-1", (gainer?.changePercent ?? 0) >= 0 ? "text-emerald-600" : "text-red-600")}> 
+              <span>{gainer?.symbol ?? "—"}</span>
+              <span>{Number.isFinite(gainer?.changePercent) ? `${(gainer!.changePercent).toFixed(2)}%` : "—"}</span>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="text-muted-foreground">Biggest Loser</div>
+            <div className={cn("font-medium flex items-center gap-1", (loser?.changePercent ?? 0) >= 0 ? "text-emerald-600" : "text-red-600")}> 
+              <span>{loser?.symbol ?? "—"}</span>
+              <span>{Number.isFinite(loser?.changePercent) ? `${(loser!.changePercent).toFixed(2)}%` : "—"}</span>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="text-muted-foreground">Daily Volatility</div>
+            <div className="font-medium">{Number.isFinite(volatility) ? `${volatility.toFixed(2)}%` : "—"}</div>
+          </div>
         </div>
         <div className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-amber-500/10 to-transparent"/>
       </div>

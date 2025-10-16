@@ -358,7 +358,7 @@ export default function ComparePage() {
       <div className="mx-auto max-w-7xl space-y-6">
         <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight dark:text-white">
               Compare Stocks
             </h1>
           </div>
@@ -515,9 +515,7 @@ export default function ComparePage() {
                   key={s.symbol}
                   className={cn(
                     "inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm",
-                    idx === 0
-                      ? "bg-gradient-to-r from-primary/20 to-[#0033FF]/10 border border-primary/30"
-                      : "bg-gray-800/40 border border-gray-600/40"
+                    "bg-gradient-to-r from-primary/20 to-[#0033FF]/10 border border-primary/30"
                   )}
                   title={`${s.name} (${s.exchange})`}
                 >
@@ -546,7 +544,7 @@ export default function ComparePage() {
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-xl md:text-2xl font-bold tracking-tight bg-black bg-clip-text text-transparent">
+                <h2 className="text-xl md:text-2xl font-bold tracking-tight text-foreground dark:text-white">
                   AI Investment Report
                 </h2>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -619,7 +617,7 @@ export default function ComparePage() {
 
             {/* AI Report Display */}
             {!analyzing && !error && report && (
-              <div className="mt-6 prose prose-invert max-w-none leading-relaxed text-black/80 prose-headings:text-indigo-400 prose-strong:text-teal-300 prose-ul:marker:text-indigo-500">
+              <div className="mt-6 prose prose-invert max-w-none leading-relaxed text-foreground prose-headings:text-indigo-400 prose-strong:text-teal-300 prose-ul:marker:text-indigo-500">
                 <ReactMarkdown components={mdComponents}>
                   {report}
                 </ReactMarkdown>

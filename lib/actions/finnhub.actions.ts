@@ -153,6 +153,33 @@ export async function getQuotes(symbols: string[]): Promise<Record<string, numbe
   return out;
 }
 
+export async function getQuoteDetails(symbols: string[]): Promise<Record<string, { current: number; previousClose: number }>> {
+  const token = process.env.FINNHUB_API_KEY ?? NEXT_PUBLIC_FINNHUB_API_KEY;
+  if (!token) {
+    throw new Error('FINNHUB API key is not configured');
+  }
+  const clean = (symbols || [])
+    .map((s) => s?.trim().toUpperCase())
+    .filter((s): s is string => Boolean(s));
+  const out: Record<string, { current: number; previousClose: number }> = {};
+  await Promise.all(
+    clean.map(async (sym) => {
+      try {
+        const url = `${FINNHUB_BASE_URL}/quote?symbol=${encodeURIComponent(sym)}&token=${token}`;
+        const q = await fetchJSON<{ c?: number; pc?: number }>(url, 30);
+        const c = Number(q?.c ?? 0);
+        const pc = Number(q?.pc ?? 0);
+        if (Number.isFinite(c) && c > 0 && Number.isFinite(pc) && pc > 0) {
+          out[sym] = { current: c, previousClose: pc };
+        }
+      } catch (e) {
+        console.error('getQuoteDetails error for', sym, e);
+      }
+    })
+  );
+  return out;
+}
+
 // Internal helpers to construct TradingView-friendly symbols
 function stripSuffixes(sym: string) {
   return sym.replace(/\.[A-Z]+$/, '');

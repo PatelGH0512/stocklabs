@@ -3,6 +3,7 @@ import NavItems from "@/components/NavItems";
 import UserDropdown from "@/components/UserDropdown";
 import { searchStocks } from "@/lib/actions/finnhub.actions";
 import ThemeToggle from "@/components/ThemeToggle";
+import MobileNav from "@/components/MobileNav";
 
 const Header = async ({ user }: { user: User }) => {
   const initialStocks = await searchStocks();
@@ -20,6 +21,7 @@ const Header = async ({ user }: { user: User }) => {
         </nav>
 
         <div className="flex items-center gap-3">
+          <MobileNav initialStocks={initialStocks} />
           <UserDropdown user={user} initialStocks={initialStocks} />
           <ThemeToggle />
         </div>

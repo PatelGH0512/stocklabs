@@ -32,11 +32,21 @@ export default function TopPerformersChart({ symbols }: { symbols: string[] }) {
   const isDark =
     ((resolvedTheme || theme || "") as string).toLowerCase() === "dark";
   const [mounted, setMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   useEffect(() => setMounted(true), []);
   useEffect(() => {
     // Set global default color so any text not explicitly styled uses theme-appropriate color
     ChartJS.defaults.color = isDark ? "#ffffff" : "#111111";
   }, [isDark]);
+  useEffect(() => {
+    const onResize = () =>
+      setIsMobile(
+        typeof window !== "undefined" ? window.innerWidth < 640 : false
+      );
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
   const uniqueSymbols = useMemo(
     () =>
       Array.from(
@@ -107,7 +117,11 @@ export default function TopPerformersChart({ symbols }: { symbols: string[] }) {
           d.changePct >= 0 ? "rgba(34,197,94,0.8)" : "rgba(239,68,68,0.8)"
         ),
         borderRadius: 8,
-        barThickness: 70,
+        // Keep bar thickness visually consistent; adjust spacing separately
+        barThickness: 26,
+        maxBarThickness: 28,
+        categoryPercentage: isMobile ? 0.9 : 0.9, // slightly more gap on desktop
+        barPercentage: 0.8,
       },
     ],
   };
@@ -115,13 +129,14 @@ export default function TopPerformersChart({ symbols }: { symbols: string[] }) {
   const options = {
     indexAxis: "y" as const,
     responsive: true,
-    layout: { padding: { left: 12, right: 8, top: 4, bottom: 4 } },
+    maintainAspectRatio: false,
+    layout: { padding: { left: 8, right: 6, top: 2, bottom: 2 } },
     plugins: {
       title: {
         display: true,
         text: titleForPeriod(period),
         color: isDark ? "#fff" : "#111",
-        font: { size: 16, weight: "bold" },
+        font: { size: isMobile ? 14 : 16, weight: "bold" },
       },
       legend: { display: false },
       tooltip: {
@@ -134,8 +149,8 @@ export default function TopPerformersChart({ symbols }: { symbols: string[] }) {
       x: {
         ticks: {
           color: isDark ? "#FFFFFF" : "#333",
-          font: { size: 11, weight: "600" as const },
-          padding: 4,
+          font: { size: isMobile ? 10 : 11, weight: "600" as const },
+          padding: 2,
         },
         grid: {
           display: true,
@@ -147,8 +162,8 @@ export default function TopPerformersChart({ symbols }: { symbols: string[] }) {
       y: {
         ticks: {
           color: isDark ? "#FFFFFF" : "#111111",
-          font: { size: 14, weight: "800" as const },
-          padding: 6,
+          font: { size: isMobile ? 12 : 13, weight: "800" as const },
+          padding: 4,
         },
         grid: {
           display: true,
@@ -192,11 +207,24 @@ export default function TopPerformersChart({ symbols }: { symbols: string[] }) {
         </div>
       </div>
 
-      <div className="bg-gradient-to-br from-gray-900 to-gray-800 p-4 rounded-2xl shadow-lg dark:bg-gray-800">
+      <div className="bg-gradient-to-br from-gray-900 to-gray-800 p-3 rounded-2xl shadow-lg dark:bg-gray-800">
         {loading ? (
           <div className="text-sm text-muted-foreground">Loading…</div>
         ) : (
-          <Bar data={chartData as any} options={options as any} height={250} />
+          <div
+            style={{
+              // Make height depend on number of bars, with sensible min/max and smaller footprint on desktop
+              height: `${Math.min(
+                Math.max(
+                  (isMobile ? 44 : 40) * Math.max(data.length, 4),
+                  isMobile ? 220 : 260
+                ),
+                isMobile ? 420 : 360
+              )}px`,
+            }}
+          >
+            <Bar data={chartData as any} options={options as any} />
+          </div>
         )}
       </div>
 

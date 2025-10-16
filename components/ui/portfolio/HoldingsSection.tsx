@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { searchStocks } from "@/lib/actions/finnhub.actions";
-import { useFinnhubWS } from "@/hooks/useFinnhubWS";
+import { useQuotesStream } from "@/hooks/useQuotesStream";
 
 interface HoldingItem {
   id: string;
@@ -96,8 +96,8 @@ export default function HoldingsSection({
     } catch {}
   };
 
-  // Realtime updates via Finnhub WebSocket
-  useFinnhubWS(
+  // Realtime updates via shared Finnhub WebSocket
+  useQuotesStream(
     holdings.map((h) => h.symbol),
     (symbol, price) => {
       setHoldings((prev) =>
