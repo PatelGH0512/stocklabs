@@ -37,9 +37,12 @@ const SignIn = () => {
 
     return (
         <>
-            <h1 className="form-title">Welcome back</h1>
+            <div className="space-y-2 text-center mb-6">
+                <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
+                <p className="text-sm text-muted-foreground">Sign in to your account to continue.</p>
+            </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <InputField
                     name="email"
                     label="Email"

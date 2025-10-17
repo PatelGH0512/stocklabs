@@ -1,5 +1,3 @@
-import Link from "next/link";
-import Image from "next/image";
 import { auth } from "@/lib/better-auth/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -10,27 +8,10 @@ const Layout = async ({ children }: { children: React.ReactNode }) => {
   if (session?.user) redirect("/");
 
   return (
-    <main className="min-h-screen text-gray-100">
-      <div className="grid min-h-screen grid-cols-1 md:grid-cols-2 md:gap-0">
-        {/* Left: Image panel */}
-        <section className="relative hidden md:flex items-center justify-end pr-3 md:pr-6">
-          <Image
-            src="/assets/images/logincard.png"
-            alt="Welcome to SockLabs"
-            width={520}
-            height={520}
-            priority
-            className="w-[65%] max-w-[420px] h-auto object-contain"
-          />
-        </section>
-
-        {/* Right: Form panel */}
-        <section className="relative flex min-h-screen flex-col md:border-l md:border-white/10">
-          {/* Form content centered */}
-          <div className="flex flex-1 items-center justify-center md:justify-start px-4 md:pl-6 pb-8">
-            <div className="w-full max-w-md">{children}</div>
-          </div>
-        </section>
+    <main className="relative min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-background text-foreground">
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-64 w-[32rem] translate-y-[-30%] rounded-full blur-3xl opacity-40 bg-primary/20" />
+      <div className="relative z-10 w-full max-w-md p-6 md:p-8 rounded-2xl border bg-card/60 backdrop-blur supports-[backdrop-filter]:bg-card/40 shadow-xl shadow-black/5">
+        {children}
       </div>
     </main>
   );
