@@ -213,7 +213,7 @@ def compare(req: CompareRequest):
     if not req.symbols:
         raise HTTPException(status_code=400, detail="symbols array is required")
 
-    api_key = os.getenv("GEMINI_API_KEY")
+    api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="GOOGLE_API_KEY is not configured")
 
