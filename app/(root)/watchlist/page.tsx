@@ -39,6 +39,12 @@ export default function WatchlistPage() {
   const [showAddStock, setShowAddStock] = useState(false);
   const [showCreateAlert, setShowCreateAlert] = useState(false);
   const [selectedStock, setSelectedStock] = useState<any>(null);
+  const [alertName, setAlertName] = useState<string>("");
+  const [conditionSel, setConditionSel] = useState<'>' | '<' | '='>('>');
+  const [targetPrice, setTargetPrice] = useState<string>("");
+  const [frequencySel, setFrequencySel] = useState<'once' | 'daily' | 'realtime'>('once');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [showEditItem, setShowEditItem] = useState(false);
   const [editingItem, setEditingItem] = useState<WatchlistItem | null>(null);
   const [editPrice, setEditPrice] = useState<number>(0);
@@ -194,6 +200,80 @@ export default function WatchlistPage() {
     setShowCreateAlert(false);
   };
 
+  const resetAlertForm = () => {
+    setAlertName("");
+    setConditionSel('>');
+    setTargetPrice("");
+    setFrequencySel('once');
+    setSubmitError(null);
+  };
+
+  const openCreateAlert = (item: WatchlistItem) => {
+    setSelectedStock(item);
+    // Prefill sensible defaults
+    setAlertName(`${item.symbol} price alert`);
+    setTargetPrice(item.price.toFixed(2));
+    setConditionSel('>');
+    setFrequencySel('once');
+    setSubmitError(null);
+    setShowCreateAlert(true);
+  };
+
+  const submitCreateAlert = async () => {
+    try {
+      if (!selectedStock) return;
+      setSubmitting(true);
+      setSubmitError(null);
+
+      const payload = {
+        stockSymbol: selectedStock.symbol,
+        stockName: selectedStock.company || selectedStock.name || "",
+        alertName: alertName?.trim() || undefined,
+        condition: conditionSel, // '>' | '<' | '='
+        targetPrice: Number(targetPrice),
+        frequency: frequencySel, // 'once' | 'daily' | 'realtime'
+      };
+
+      if (!payload.stockSymbol || !payload.stockName) throw new Error('Missing stock symbol or name');
+      if (!Number.isFinite(payload.targetPrice)) throw new Error('Please enter a valid target price');
+
+      const res = await fetch('/api/alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.success) throw new Error(data?.error || 'Failed to create alert');
+
+      // Optional: optimistic local list add
+      setAlerts((prev) => [
+        {
+          id: data.alert?._id || Date.now().toString(),
+          symbol: data.alert?.symbol || payload.stockSymbol,
+          company: data.alert?.company || payload.stockName,
+          type: 'price',
+          condition: (data.alert?.condition || (conditionSel === '>' ? 'above' : conditionSel === '<' ? 'below' : 'equal')) as any,
+          value: data.alert?.value ?? payload.targetPrice,
+          active: true,
+        },
+        ...prev,
+      ]);
+
+      // Success toast (simple)
+      if (typeof window !== 'undefined') {
+        window.alert('Alert created successfully');
+      }
+
+      setShowCreateAlert(false);
+      setSelectedStock(null);
+      resetAlertForm();
+    } catch (e: any) {
+      setSubmitError(e?.message || 'Failed to create alert');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground p-6">
       <div className="w-full">
@@ -265,7 +345,7 @@ export default function WatchlistPage() {
                         </button>
                         <Button
                           size="sm"
-                          onClick={() => { setSelectedStock(item); setShowCreateAlert(true); }}
+                          onClick={() => openCreateAlert(item)}
                           className="bg-muted hover:bg-muted/80 text-primary text-xs px-3 py-1"
                         >
                           Add Alert
@@ -396,6 +476,10 @@ export default function WatchlistPage() {
                   <Input value={selectedStock?.symbol || ""} disabled className="mt-1 bg-background border-border" />
                 </div>
                 <div>
+                  <label className="text-muted-foreground text-sm">Alert name</label>
+                  <Input value={alertName} onChange={(e) => setAlertName(e.target.value)} placeholder="e.g. AAPL hits 250" className="mt-1 bg-background border-border" />
+                </div>
+                <div>
                   <label className="text-muted-foreground text-sm">Alert Type</label>
                   <select className="w-full mt-1 p-2 bg-background border border-border rounded-lg">
                     <option>Price Alert</option>
@@ -405,18 +489,32 @@ export default function WatchlistPage() {
                 <div>
                   <label className="text-muted-foreground text-sm">Condition</label>
                   <div className="flex gap-2 mt-1">
-                    <button className="flex-1 p-2 bg-background border border-border rounded-lg hover:border-primary">Above</button>
-                    <button className="flex-1 p-2 bg-background border border-border rounded-lg hover:border-primary">Below</button>
+                    <button onClick={() => setConditionSel('>')} className={cn("flex-1 p-2 bg-background border rounded-lg", conditionSel === '>' ? "border-primary" : "border-border hover:border-primary")}>Above</button>
+                    <button onClick={() => setConditionSel('<')} className={cn("flex-1 p-2 bg-background border rounded-lg", conditionSel === '<' ? "border-primary" : "border-border hover:border-primary")}>Below</button>
+                    <button onClick={() => setConditionSel('=')} className={cn("flex-1 p-2 bg-background border rounded-lg", conditionSel === '=' ? "border-primary" : "border-border hover:border-primary")}>Equal</button>
                   </div>
                 </div>
                 <div>
                   <label className="text-muted-foreground text-sm">Price Target</label>
-                  <Input type="number" placeholder="Enter price" className="mt-1 bg-background border-border" />
+                  <Input type="number" value={targetPrice} onChange={(e) => setTargetPrice(e.target.value)} placeholder="Enter price" className="mt-1 bg-background border-border" />
                 </div>
+                <div>
+                  <label className="text-muted-foreground text-sm">Frequency</label>
+                  <select value={frequencySel} onChange={(e) => setFrequencySel(e.target.value as any)} className="w-full mt-1 p-2 bg-background border border-border rounded-lg">
+                    <option value="once">Once</option>
+                    <option value="daily">Daily</option>
+                    <option value="realtime">Realtime</option>
+                  </select>
+                </div>
+                {submitError && (
+                  <div className="text-sm text-red-500">{submitError}</div>
+                )}
               </div>
               <div className="flex justify-end gap-3 mt-6">
-                <Button variant="outline" onClick={() => { setShowCreateAlert(false); setSelectedStock(null); }}>Cancel</Button>
-                <Button className="bg-primary text-primary-foreground hover:brightness-110" onClick={() => { setShowCreateAlert(false); setSelectedStock(null); }}>Create Alert</Button>
+                <Button variant="outline" onClick={() => { setShowCreateAlert(false); setSelectedStock(null); resetAlertForm(); }}>Cancel</Button>
+                <Button disabled={submitting} className="bg-primary text-primary-foreground hover:brightness-110" onClick={submitCreateAlert}>
+                  {submitting ? 'Creating...' : 'Create Alert'}
+                </Button>
               </div>
             </div>
           </div>

@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import {WELCOME_EMAIL_TEMPLATE, NEWS_SUMMARY_EMAIL_TEMPLATE} from "@/lib/nodemailer/templates";
+import {WELCOME_EMAIL_TEMPLATE, NEWS_SUMMARY_EMAIL_TEMPLATE, STOCK_ALERT_UPPER_EMAIL_TEMPLATE, STOCK_ALERT_LOWER_EMAIL_TEMPLATE} from "@/lib/nodemailer/templates";
 
 export const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -9,7 +9,7 @@ export const transporter = nodemailer.createTransport({
     }
 })
 
-export const sendWelcomeEmail = async ({ email, name, intro }: WelcomeEmailData) => {
+export const sendWelcomeEmail = async ({ email, name, intro }: { email: string; name: string; intro: string }) => {
     const htmlTemplate = WELCOME_EMAIL_TEMPLATE
         .replace('{{name}}', name)
         .replace('{{intro}}', intro);
@@ -42,3 +42,37 @@ export const sendNewsSummaryEmail = async (
 
     await transporter.sendMail(mailOptions);
 };
+
+export const sendStockAlertEmail = async (params: {
+    email: string;
+    condition: 'above' | 'below' | 'equal';
+    symbol: string;
+    company: string;
+    targetPrice: number;
+    currentPrice: number;
+    timestamp: string;
+}): Promise<void> => {
+    const { email, condition, symbol, company, targetPrice, currentPrice, timestamp } = params;
+    const isAbove = condition === 'above' || condition === 'equal';
+    const template = isAbove ? STOCK_ALERT_UPPER_EMAIL_TEMPLATE : STOCK_ALERT_LOWER_EMAIL_TEMPLATE;
+    const htmlTemplate = template
+        .replace(/\{\{symbol}}/g, `${symbol}`)
+        .replace(/\{\{company}}/g, `${company}`)
+        .replace(/\{\{targetPrice}}/g, `$${targetPrice.toFixed(2)}`)
+        .replace(/\{\{currentPrice}}/g, `$${currentPrice.toFixed(2)}`)
+        .replace(/\{\{timestamp}}/g, timestamp);
+
+    const subject = isAbove
+        ? `🔔 ${symbol} price reached target ($${targetPrice.toFixed(2)})`
+        : `🔔 ${symbol} price dropped to target ($${targetPrice.toFixed(2)})`;
+
+    const mailOptions = {
+        from: `"Signalist Alerts" <alerts@signalist.app>`,
+        to: email,
+        subject,
+        text: `${symbol} ${isAbove ? 'at or above' : 'at or below'} ${targetPrice.toFixed(2)}. Current: ${currentPrice.toFixed(2)}`,
+        html: htmlTemplate,
+    };
+
+    await transporter.sendMail(mailOptions);
+}
