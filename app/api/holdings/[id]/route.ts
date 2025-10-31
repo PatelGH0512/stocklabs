@@ -1,7 +1,10 @@
 import { NextRequest } from 'next/server';
 import { connectToDatabase } from '@/database/mongoose';
-import { Holding } from '@/database/models/holding.model';
+import { Holding, IHolding } from '@/database/models/holding.model';
 import { auth } from '@/lib/better-auth/auth';
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -18,7 +21,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       { _id: id, userId },
       { $set: { shares: Math.max(0, Number(shares || 0)), buyPrice: Math.max(0, Number(buyPrice || 0)) } },
       { new: true }
-    ).lean();
+    ).lean<IHolding>();
 
     if (!doc) return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
 

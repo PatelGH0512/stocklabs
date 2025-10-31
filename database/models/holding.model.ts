@@ -22,4 +22,4 @@ const HoldingSchema = new Schema<IHolding>({
 
 HoldingSchema.index({ userId: 1, symbol: 1 }, { unique: false });
 
-export const Holding = models.Holding || model<IHolding>('Holding', HoldingSchema);
+export const Holding = (models.Holding as mongoose.Model<IHolding>) || model<IHolding>('Holding', HoldingSchema);
