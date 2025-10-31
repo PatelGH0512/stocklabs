@@ -1,7 +1,9 @@
 import { NextRequest } from 'next/server';
 
 // Generates short AI commentary about performance items.
-// If GOOGLE_GEMINI_API_KEY is not configured or the call fails, we fallback to a simple heuristic message.
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();

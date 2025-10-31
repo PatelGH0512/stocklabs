@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(req: NextRequest) {
   try {

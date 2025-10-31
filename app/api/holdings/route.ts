@@ -3,6 +3,9 @@ import { connectToDatabase } from '@/database/mongoose';
 import { Holding } from '@/database/models/holding.model';
 import { auth } from '@/lib/better-auth/auth';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 export async function GET(req: NextRequest) {
   try {
     await connectToDatabase();

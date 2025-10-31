@@ -3,7 +3,9 @@ import { getPerformance, getQuotes } from '@/lib/actions/finnhub.actions';
 import { auth } from '@/lib/better-auth/auth';
 import { connectToDatabase } from '@/database/mongoose';
 import { Holding } from '@/database/models/holding.model';
-
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
