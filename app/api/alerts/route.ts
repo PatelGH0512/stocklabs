@@ -4,6 +4,11 @@ import { connectToDatabase } from "@/database/mongoose";
 import { Alert } from "@/database/models/alert.model";
 import { inngest } from "@/lib/inngest/client";
 
+// Ensure this API route is never statically pre-rendered during build
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(req: NextRequest) {
   try {
     const session = await auth.api.getSession({ headers: req.headers });
@@ -77,3 +82,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: e?.message || "Failed to create alert" }, { status: 500 });
   }
 }
+
