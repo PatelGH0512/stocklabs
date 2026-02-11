@@ -98,6 +98,7 @@ Key flows:
 ### Prerequisites
 
 - Node.js 18+
+- Python 3.10+ (required for the Compare AI service)
 - MongoDB Atlas or local MongoDB
 - Finnhub API Key
 - Gemini API Key
@@ -133,6 +134,12 @@ INNGEST_EVENT_KEY="..."
 # AI (Gemini)
 GEMINI_API_KEY="..."
 
+# Compare AI service (Python)
+# In local dev this should point to the FastAPI server started from server.py
+PY_SERVICE_URL="http://127.0.0.1:8000"
+# server.py expects GOOGLE_API_KEY (not GEMINI_API_KEY)
+GOOGLE_API_KEY="..."
+
 # Email (Nodemailer - Gmail)
 NODEMAILER_EMAIL="your-gmail@gmail.com"
 NODEMAILER_PASSWORD="app-password"
@@ -142,6 +149,7 @@ Notes:
 
 - If Gmail has 2FA, use an App Password.
 - For development, ensure `BETTER_AUTH_URL` matches your local URL.
+- If you plan to use the Compare page, you must also start the Python service (see below).
 
 ### Run the App
 
@@ -150,6 +158,24 @@ npm run dev
 ```
 
 App runs at http://localhost:3000
+
+### Run the Compare (Python) Service
+
+The Compare page calls `POST /api/compare`, which proxies to a separate Python FastAPI service (`server.py`).
+
+1. Install Python dependencies:
+
+```bash
+python3 -m pip install -r requirements.txt
+```
+
+2. Start the FastAPI server (in a second terminal):
+
+```bash
+python3 -m uvicorn server:app --host 127.0.0.1 --port 8000 --reload
+```
+
+If you see `ECONNREFUSED 127.0.0.1:8000` from `/api/compare`, it means this service is not running or `PY_SERVICE_URL` is misconfigured.
 
 ---
 
@@ -171,7 +197,7 @@ lib/                      # Actions, auth, inngest, nodemailer, utils
 middleware/               # Next middleware if needed
 types/                    # Global types
 scripts/                  # Utility scripts (db tests)
-server.py                 # Optional FastAPI prototype (not required)
+server.py                 # Python FastAPI service for Compare (runs separately)
 ```
 
 Useful scripts:
@@ -180,6 +206,7 @@ Useful scripts:
 - `npm run build` – Build
 - `npm run start` – Start production
 - `npm run test:db` – Connectivity test for Mongo
+- `python3 -m uvicorn server:app --host 127.0.0.1 --port 8000 --reload` – Start the Compare Python service
 
 ---
 
@@ -190,12 +217,14 @@ Recommended:
 - Frontend/Serverless: Vercel (Next.js)
 - Database: MongoDB Atlas
 - Background Jobs: Inngest Cloud
+- Compare AI service: Deploy `server.py` separately (Render/Fly/Railway/Cloud Run), then set `PY_SERVICE_URL` on Vercel
 
 Steps:
 
 1. Push to GitHub
 2. Import repo into Vercel
 3. Set environment variables in Vercel
+   - Set `PY_SERVICE_URL` to your deployed Python service base URL (example: `https://your-python-service.example.com`)
 4. Configure Inngest project and set `INNGEST_EVENT_KEY`
 5. Set `BETTER_AUTH_URL` to your production domain
 6. Ensure Gmail SMTP variables are set (or swap to a dedicated provider like SendGrid)
