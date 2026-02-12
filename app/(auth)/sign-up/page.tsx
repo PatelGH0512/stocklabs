@@ -45,6 +45,9 @@ const SignUp = () => {
   return (
     <>
       <div className="space-y-2 text-center mb-6">
+        <div className="text-xl font-semibold text-foreground tracking-tight">
+          StockLabs
+        </div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Create your account
         </h1>
@@ -57,7 +60,7 @@ const SignUp = () => {
         <InputField
           name="fullName"
           label="Full Name"
-          placeholder="John Doe"
+          placeholder="Enter your full name"
           register={register}
           error={errors.fullName}
           validation={{ required: "Full name is required", minLength: 2 }}
@@ -66,7 +69,7 @@ const SignUp = () => {
         <InputField
           name="email"
           label="Email"
-          placeholder="contact@jsmastery.com"
+          placeholder="Enter your email"
           register={register}
           error={errors.email}
           validation={{
