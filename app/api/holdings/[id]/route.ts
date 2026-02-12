@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { connectToDatabase } from '@/database/mongoose';
 import { Holding, IHolding } from '@/database/models/holding.model';
-import { auth } from '@/lib/better-auth/auth';
+import { getAuth } from '@/lib/better-auth/auth';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -9,6 +9,7 @@ export const revalidate = 0;
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     await connectToDatabase();
+    const auth = await getAuth();
     const session = await auth.api.getSession({ headers: req.headers });
     const userId = session?.user?.id;
     if (!userId) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
@@ -45,6 +46,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     await connectToDatabase();
+    const auth = await getAuth();
     const session = await auth.api.getSession({ headers: req.headers });
     const userId = session?.user?.id;
     if (!userId) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { connectToDatabase } from '@/database/mongoose';
 import { Holding } from '@/database/models/holding.model';
-import { auth } from '@/lib/better-auth/auth';
+import { getAuth } from '@/lib/better-auth/auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -9,6 +9,7 @@ export const revalidate = 0;
 export async function GET(req: NextRequest) {
   try {
     await connectToDatabase();
+    const auth = await getAuth();
     const session = await auth.api.getSession({ headers: req.headers });
     const userId = session?.user?.id;
     if (!userId) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
@@ -34,6 +35,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     await connectToDatabase();
+    const auth = await getAuth();
     const session = await auth.api.getSession({ headers: req.headers });
     const userId = session?.user?.id;
     if (!userId) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
@@ -42,7 +44,7 @@ export async function POST(req: NextRequest) {
     const { symbol, company, shares, buyPrice, currentPrice } = body || {};
     if (!symbol || !company) return new Response(JSON.stringify({ error: 'symbol and company required' }), { status: 400 });
 
-    const doc = await Holding.create({ userId, symbol, company, shares: Math.max(0, Number(shares || 0)), buyPrice: Math.max(0, Number(buyPrice || 0)), currentPrice: Number(currentPrice || 0) });
+    const doc: any = await Holding.create({ userId, symbol, company, shares: Math.max(0, Number(shares || 0)), buyPrice: Math.max(0, Number(buyPrice || 0)), currentPrice: Number(currentPrice || 0) });
     const res = {
       id: doc._id.toString(),
       symbol: doc.symbol,

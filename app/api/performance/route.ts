@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getPerformance, getQuotes } from '@/lib/actions/finnhub.actions';
-import { auth } from '@/lib/better-auth/auth';
+import { getAuth } from '@/lib/better-auth/auth';
 import { connectToDatabase } from '@/database/mongoose';
 import { Holding } from '@/database/models/holding.model';
 export const runtime = 'nodejs';
@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
 
     // Fallback: for any 0% entries likely due to restricted candles, compute using user's buyPrice vs current quote
     try {
+      const auth = await getAuth();
       const session = await auth.api.getSession({ headers: req.headers });
       const userId = session?.user?.id;
       if (userId) {

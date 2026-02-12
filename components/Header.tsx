@@ -22,7 +22,9 @@ const Header = async ({ user }: { user: User }) => {
 
         <div className="flex items-center gap-3">
           <MobileNav initialStocks={initialStocks} />
-          <UserDropdown user={user} initialStocks={initialStocks} />
+          <div className="hidden sm:block">
+            <UserDropdown user={user} initialStocks={initialStocks} />
+          </div>
           <ThemeToggle />
         </div>
       </div>
